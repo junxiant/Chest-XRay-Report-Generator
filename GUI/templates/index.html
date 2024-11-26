@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X-Ray Report Generator</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .drop-zone {
+            border: 2px dashed #cbd5e0;
+            transition: all 0.3s ease;
+        }
+        .drop-zone.dragover {
+            border-color: #4299e1;
+            background-color: #ebf8ff;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">Chest X-Ray Radiology Report Generator</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Left Column: File Upload Parts -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div id="drop-zone" class="drop-zone h-64 rounded-lg flex flex-col items-center justify-center p-4 cursor-pointer">
+                    <svg class="w-12 h-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    <p class="text-gray-600 text-center mb-2">Drag and drop your X-ray image here</p>
+                    <p class="text-gray-500 text-sm text-center">or</p>
+                    <input type="file" id="file-input" class="hidden" accept=".jpg,.jpeg,.png">
+                    <button onclick="document.getElementById('file-input').click()" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                        Browse Files
+                    </button>
+                </div>
+                <p id="selected-file" class="mt-4 text-sm text-gray-600 text-center"></p>
+            </div>
+
+            <!-- Right Column: Report Generation Outputs -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <button id="generate-btn" class="w-full px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-6">
+                    Generate Report
+                </button>
+                <div id="report-area" class="h-64 border rounded-lg p-4 overflow-y-auto bg-gray-50">
+                    <p class="text-gray-500 text-center">Generated report...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const selectedFile = document.getElementById('selected-file');
+        const generateBtn = document.getElementById('generate-btn');
+        const reportArea = document.getElementById('report-area');
+        let currentFile = null;
+
+        // Drag and drop handlers
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('dragover');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        fileInput.addEventListener('change', function(e) {
+            handleFiles(this.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                currentFile = files[0];
+                selectedFile.textContent = `Selected: ${currentFile.name}`;
+                generateBtn.disabled = false;
+            }
+        }
+
+        generateBtn.addEventListener('click', async () => {
+            if (!currentFile) return;
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+            reportArea.innerHTML = '<p class="text-center text-gray-500">Processing...</p>';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    reportArea.innerHTML = `<p class="text-gray-800 whitespace-pre-line">${data.report}</p>`;
+                } else {
+                    reportArea.innerHTML = `<p class="text-red-500">Error: ${data.error}</p>`;
+                }
+            } catch (error) {
+                reportArea.innerHTML = '<p class="text-red-500">An error occurred while generating the report.</p>';
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate Report';
+            }
+        });
+    </script>
+</body>
+</html>
